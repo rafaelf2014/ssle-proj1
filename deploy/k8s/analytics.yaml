@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: analytics
+  namespace: ssle
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: analytics }
+  template:
+    metadata:
+      labels: { app: analytics }
+    spec:
+      containers:
+        - name: analytics
+          image: 10.255.255.10:5000/ssle-analytics:dev
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 5003
+          env:
+            - name: LISTEN_ADDR
+              value: ":5003"
+            - name: REGISTRY_URL
+              value: "http://service-registry:5050"
+            - name: STORAGE_URL
+              value: "http://storage:5002"
+            - name: SELF_URL
+              value: "http://analytics:5003"
+            - name: SERVICE_ID_PREFIX
+              value: "eu-pt.aveiro-dc1.rack2"
+            - name: NODE_NAME
+              valueFrom: { fieldRef: { fieldPath: spec.nodeName } }
+            - name: POD_NAME
+              valueFrom: { fieldRef: { fieldPath: metadata.name } }
+          readinessProbe:
+            httpGet: { path: /healthz, port: 5003 }
+          resources:
+            requests: { cpu: 10m, memory: 16Mi }
+            limits: { cpu: 200m, memory: 64Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: analytics
+  namespace: ssle
+spec:
+  type: NodePort
+  selector: { app: analytics }
+  ports:
+    - port: 5003
+      targetPort: 5003
+      nodePort: 30003

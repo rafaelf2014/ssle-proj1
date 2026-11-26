@@ -1,0 +1,11 @@
+#!/usr/bin/python3
+# cpu-heavy endpoint, each hit costs real work
+import hashlib, os
+
+rounds = int(os.environ.get("WORK_ROUNDS", "120000"))
+b = b"x" * 64
+for _ in range(rounds):
+    b = hashlib.sha256(b).digest()
+
+print("Content-Type: text/plain\n")
+print("done", b[:4].hex())

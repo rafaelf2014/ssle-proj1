@@ -1,0 +1,50 @@
+<!-- custom wazuh rules, loaded on the manager at etc/rules/local_rules.xml -->
+<group name="ssle,dns,">
+
+  <!-- match the resolver's json decision events -->
+  <rule id="100200" level="3">
+    <decoded_as>json</decoded_as>
+    <field name="msg">dns_decision</field>
+    <description>DNS resolver decision: $(decision) for $(qname)</description>
+  </rule>
+
+  <!-- alert when the resolver sinkholes (blocks) a domain -->
+  <rule id="100201" level="10">
+    <if_sid>100200</if_sid>
+    <field name="decision">sinkhole</field>
+    <description>Protective resolver SINKHOLED $(qname) (risk $(score)) reported by $(service_id)</description>
+    <group>attack,phishing,</group>
+  </rule>
+
+</group>
+
+<group name="ssle,c2,">
+
+  <!-- the monitor flags the outbound to the handler; srcip is the c2 ip to drop -->
+  <rule id="100300" level="12">
+    <decoded_as>json</decoded_as>
+    <field name="event">c2_egress</field>
+    <description>APT/C2: outbound connection to handler $(remote) by process $(process) (T1071)</description>
+    <group>attack,c2,</group>
+  </rule>
+
+</group>
+
+<group name="ssle,dos,">
+
+  <!-- a plain 200 matches a level-0 rule the frequency counter ignores, so bump
+       each access line to level 2 (quiet) and count those per source ip -->
+  <rule id="100401" level="2">
+    <if_group>accesslog</if_group>
+    <description>web request from $(srcip)</description>
+  </rule>
+
+  <!-- burst from one ip = flood. threshold: 15 requests in 10s -->
+  <rule id="100400" level="10" frequency="15" timeframe="10">
+    <if_matched_sid>100401</if_matched_sid>
+    <same_source_ip />
+    <description>Possible DoS: burst of HTTP requests from $(srcip) on apache-victim</description>
+    <group>attack,dos,</group>
+  </rule>
+
+</group>

@@ -1,0 +1,32 @@
+groups:
+  - name: ddos
+    rules:
+      # the probe can't get a 2xx back: the site is effectively unavailable
+      - alert: ApacheDown
+        expr: probe_success{instance="http://10.255.255.22/"} == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "apache-victim not serving"
+          description: "blackbox probe to apache-victim has failed for 30s"
+
+      # round-trip to the page is slow for a sustained stretch
+      - alert: ApacheHighLatency
+        expr: probe_duration_seconds{instance="http://10.255.255.22/"} > 0.5
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "apache-victim slow to respond"
+          description: "probe latency over 0.5s for 1m (p95 from ab should corroborate)"
+
+      # the capped single cpu is pegged: the clearest signal at this bounded load
+      - alert: ApacheVictimCPUSaturated
+        expr: 1 - avg without (cpu, mode) (rate(node_cpu_seconds_total{host="apache-victim",mode="idle"}[1m])) > 0.9
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "apache-victim CPU saturated"
+          description: "capped cpu on apache-victim has been over 90% busy for 1m"

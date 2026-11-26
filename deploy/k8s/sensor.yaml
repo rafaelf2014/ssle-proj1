@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sensor
+  namespace: ssle
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: sensor }
+  template:
+    metadata:
+      labels: { app: sensor }
+    spec:
+      containers:
+        - name: sensor
+          image: 10.255.255.10:5000/ssle-sensor:dev
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 5004
+          env:
+            - name: LISTEN_ADDR
+              value: ":5004"
+            - name: REGISTRY_URL
+              value: "http://service-registry:5050"
+            - name: INGESTION_URL
+              value: "http://ingestion:5001"
+            - name: SELF_URL
+              value: "http://sensor:5004"
+            - name: DEVICE_ID
+              value: "sensor-1"
+            - name: SERVICE_ID_PREFIX
+              value: "eu-pt.aveiro-dc1.rack4"
+            - name: NODE_NAME
+              valueFrom: { fieldRef: { fieldPath: spec.nodeName } }
+            - name: POD_NAME
+              valueFrom: { fieldRef: { fieldPath: metadata.name } }
+          readinessProbe:
+            httpGet: { path: /healthz, port: 5004 }
+          resources:
+            requests: { cpu: 10m, memory: 16Mi }
+            limits: { cpu: 200m, memory: 64Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sensor
+  namespace: ssle
+spec:
+  type: NodePort
+  selector: { app: sensor }
+  ports:
+    - port: 5004
+      targetPort: 5004
+      nodePort: 30004

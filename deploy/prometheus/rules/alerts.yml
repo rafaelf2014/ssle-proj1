@@ -1,0 +1,27 @@
+groups:
+  - name: availability
+    rules:
+      # a target that stops answering scrapes is either down or unreachable
+      - alert: ServiceDown
+        expr: up{job="ssle-services"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "service {{ $labels.service }} is down"
+          description: "no successful scrape of {{ $labels.service }} ({{ $labels.instance }}) for 1m"
+
+  - name: latency
+    rules:
+      # p95 latency, only when there's real traffic - at idle a couple of slow
+      # startup requests fake a high p95
+      - alert: HighP95Latency
+        expr: |
+          histogram_quantile(0.95, sum by (le, service) (rate(http_request_duration_seconds_bucket[5m]))) > 0.5
+          and sum by (service) (rate(http_requests_total[5m])) > 1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "high p95 latency on {{ $labels.service }}"
+          description: "p95 latency for {{ $labels.service }} has been over 0.5s for 2m under real load"

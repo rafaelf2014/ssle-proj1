@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: service-registry
+  namespace: ssle
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: service-registry }
+  template:
+    metadata:
+      labels: { app: service-registry }
+    spec:
+      containers:
+        - name: registry
+          image: 10.255.255.10:5000/ssle-registry:dev
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 5050
+          env:
+            - name: LISTEN_ADDR
+              value: ":5050"
+            - name: SERVICE_ID_PREFIX
+              value: "eu-pt.aveiro-dc1.rack1"
+            - name: NODE_NAME
+              valueFrom: { fieldRef: { fieldPath: spec.nodeName } }
+            - name: POD_NAME
+              valueFrom: { fieldRef: { fieldPath: metadata.name } }
+          readinessProbe:
+            httpGet: { path: /healthz, port: 5050 }
+          resources:
+            requests: { cpu: 10m, memory: 16Mi }
+            limits: { cpu: 200m, memory: 64Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-registry
+  namespace: ssle
+spec:
+  type: NodePort
+  selector: { app: service-registry }
+  ports:
+    - port: 5050
+      targetPort: 5050
+      nodePort: 30050
